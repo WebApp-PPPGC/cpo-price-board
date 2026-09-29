@@ -118,6 +118,7 @@ sup.d{font-size:.62rem;color:var(--faint);font-style:normal;margin-left:2px}
 .asof{display:inline-block;font-family:var(--f-body);font-size:.68rem;font-weight:600;color:var(--accent);border:1px solid color-mix(in srgb,var(--accent) 55%,transparent);background:color-mix(in srgb,var(--accent) 12%,transparent);border-radius:5px;padding:0 5px;margin-right:6px;vertical-align:1px;font-style:normal}
 .livetag{display:inline-block;font-size:.66rem;font-weight:600;color:var(--accent);margin-left:6px}
 td.prov{font-style:italic}
+.tclose{display:inline-block;font-size:.68rem;color:var(--faint);margin-right:6px;font-style:normal;vertical-align:1px}
 .dow{color:var(--muted);font-size:.78rem;margin-right:4px}
 .legend{display:flex;flex-wrap:wrap;gap:16px;font-size:.8rem;color:var(--muted)}
 .notes{font-size:.84rem;color:var(--muted);display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px 24px}
@@ -136,7 +137,7 @@ td.prov{font-style:italic}
   <div class="wrap">
     <div class="band-top">
       <div>
-        <div class="eyebrow" style="color:#9fc2b2">PPPGC </div>
+        <div class="eyebrow" style="color:#9fc2b2">PPPGC</div>
         <h1>ราคาปาล์ม CPO <span>เปิด 09:45 · ปิด 17:15</span></h1>
       </div>
       <div class="band-meta">
@@ -184,6 +185,7 @@ td.prov{font-style:italic}
     <div class="legend">
       <span>สีเขียว = ปิดสูงกว่าเปิด · สีแดง = ปิดต่ำกว่าเปิด</span>
       <span><i style="color:var(--fb)">ตัวเอียง</i><sup class="d">D</sup> = วันที่ยังไม่มีข้อมูล 15 นาที ใช้ราคาเปิด/ปิดทั้งวันของตลาดแทน</span>
+      <span><span class="tclose" style="color:var(--muted)">17:00</span>= เวลาของราคาสุดท้ายก่อน 17:15 ที่ใช้เป็นราคาปิด (ตลาดปิดก่อน 17:15 จะเป็นเวลาปิดตลาด)</span>
       <span><span class="asof">ณ 13:45</span>= วันนี้ยังไม่ถึง 17:15 ตัวเลขเป็นราคาล่าสุด ณ เวลานั้น</span>
       <span>– = ตลาดหยุด</span>
     </div>
@@ -375,7 +377,7 @@ function table() {
     const r = byKey[k][d], dec = M[k].dec;
     if (!r) return `<td class="gs na">–</td><td class="na">–</td><td class="na">–</td><td class="na">–</td>`;
     const fb = r.src === "d" ? " fb" : "", mark = r.src === "d" ? `<sup class="d">D</sup>` : "", s = sgn(r.chg);
-    const prov = isProvisional(k, r), pv = prov ? " prov" : "", asof = prov ? `<span class="asof" title="ยังไม่ถึง 17:15 เป็นราคาล่าสุด ณ เวลานี้">ณ ${r.t_close}</span>` : "";
+    const prov = isProvisional(k, r), pv = prov ? " prov" : "", asof = prov ? `<span class="asof" title="ยังไม่ถึง 17:15 เป็นราคาล่าสุด ณ เวลานี้">ณ ${r.t_close}</span>` : r.t_close ? `<span class="tclose" title="เวลาของราคาสุดท้ายก่อน 17:15">${r.t_close}</span>` : "";
     return `<td class="gs num${fb}" title="${r.t_open ? "แท่ง " + r.t_open : "ราคาเปิดทั้งวัน"}">${fmt(r.o, dec)}${mark}</td><td class="num${fb}${pv}" title="${r.t_close ? "ราคาล่าสุดถึง " + r.t_close : "ราคาปิดทั้งวัน"}">${asof}${fmt(r.c, dec)}</td>` +
       `<td class="num ${s}${pv}">${r.chg > 0 ? "+" : ""}${fmt(r.chg, dec)}</td><td class="num ${s}${pv}">${pct(r.chg_pct)}</td>`;
   }).join("") + `</tr>`).join("");
