@@ -1,0 +1,400 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CPO Price Board</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Kanit:wght@500;600&family=IBM+Plex+Sans+Thai:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: deep palm-green trading board — status band, 3 market tiles, intraday trio, 1-year chart, wide Excel-style table */
+:root{
+  --bg:#0b1512; --band:#0f231c; --panel:#12211b; --panel-2:#182c24; --line:#244037; --line-soft:#1b3129;
+  --fg:#e7efe9; --muted:#8fa79c; --faint:#5f7a6f;
+  --accent:#f28a3b;            /* crude palm oil orange-red */
+  --c-ncdex:#f3b73a; --c-fcpo:#f06a3b; --c-dalian:#35c7ae;
+  --up:#3ccf7b; --down:#ff6161; --up-bg:rgba(60,207,123,.12); --down-bg:rgba(255,97,97,.12);
+  --fb:#7c8f86;
+  --f-display:"Kanit","IBM Plex Sans Thai",system-ui,sans-serif;
+  --f-body:"IBM Plex Sans Thai",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Consolas,monospace;
+  color-scheme:dark;
+}
+@media (prefers-color-scheme: light){ :root:not([data-theme="dark"]){
+  --bg:#e7efe9; --band:#123a2c; --panel:#f5f9f6; --panel-2:#e9f1ec; --line:#c3d4ca; --line-soft:#d7e3dc;
+  --fg:#10261e; --muted:#4f6b5f; --faint:#7d978b;
+  --accent:#d0621a; --c-ncdex:#b98200; --c-fcpo:#d44a1c; --c-dalian:#0f8f7a;
+  --up:#128a47; --down:#d12f2f; --up-bg:rgba(18,138,71,.10); --down-bg:rgba(209,47,47,.10); --fb:#6d8378;
+  color-scheme:light; } }
+:root[data-theme="light"]{
+  --bg:#e7efe9; --band:#123a2c; --panel:#f5f9f6; --panel-2:#e9f1ec; --line:#c3d4ca; --line-soft:#d7e3dc;
+  --fg:#10261e; --muted:#4f6b5f; --faint:#7d978b;
+  --accent:#d0621a; --c-ncdex:#b98200; --c-fcpo:#d44a1c; --c-dalian:#0f8f7a;
+  --up:#128a47; --down:#d12f2f; --up-bg:rgba(18,138,71,.10); --down-bg:rgba(209,47,47,.10); --fb:#6d8378;
+  color-scheme:light; }
+
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.55 var(--f-body)}
+.wrap{max-width:1320px;margin:0 auto;padding-inline:20px;padding-block:0 48px;display:flex;flex-direction:column;gap:22px}
+.num{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+h1,h2{font-family:var(--f-display);font-weight:600;margin:0;text-wrap:balance;letter-spacing:.01em}
+h2{font-size:1.2rem}
+.eyebrow{font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+
+/* status band */
+.band{background:linear-gradient(180deg,var(--band),color-mix(in srgb,var(--band) 70%,var(--bg)));border-bottom:1px solid var(--line);color:#eaf3ee}
+.band .wrap{padding-block:22px 18px;gap:10px}
+.band-top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:14px}
+.band h1{font-size:clamp(1.5rem,3.2vw,2.2rem);line-height:1.15}
+.band h1 span{color:#ffb071}
+.band p{margin:0;color:#b4cbc0;font-size:.92rem;max-width:70ch}
+.band-meta{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.pill{display:inline-flex;align-items:center;gap:7px;padding:5px 12px;border-radius:999px;font-size:.82rem;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);color:#eaf3ee;white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:#7d938a}
+.pill.live .dot{background:#46e08a;box-shadow:0 0 0 0 rgba(70,224,138,.6);animation:pulse 1.8s infinite}
+@keyframes pulse{70%{box-shadow:0 0 0 8px rgba(70,224,138,0)}100%{box-shadow:0 0 0 0 rgba(70,224,138,0)}}
+@media (prefers-reduced-motion:reduce){.pill.live .dot{animation:none}}
+button{font:inherit;cursor:pointer}
+.btn{border:1px solid var(--line);background:var(--panel-2);color:var(--fg);padding:6px 13px;border-radius:8px;font-size:.85rem}
+.btn:hover{border-color:var(--accent)}
+.btn:focus-visible,.seg button:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.band .btn{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.22);color:#eaf3ee}
+
+/* tiles */
+.tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:-4px}
+.tile{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px 14px;display:flex;flex-direction:column;gap:10px;position:relative;overflow:hidden;min-width:0}
+.tile::before{content:"";position:absolute;inset:0 0 auto 0;height:3px;background:var(--mc)}
+.tile-head{display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+.tile-name{font-family:var(--f-display);font-weight:600;font-size:1.08rem;color:var(--mc)}
+.tile-sub{font-size:.78rem;color:var(--muted)}
+.tile-date{font-size:.78rem;color:var(--muted);text-align:right}
+.oc{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.oc div{display:flex;flex-direction:column;gap:2px;min-width:0}
+.oc .lbl{font-size:.74rem;color:var(--muted)}
+.oc .val{font-size:1.45rem;font-weight:500;line-height:1.2}
+.tile-foot{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}
+.chip{display:inline-flex;gap:6px;align-items:center;padding:2px 9px;border-radius:6px;font-size:.82rem}
+.chip.up{color:var(--up);background:var(--up-bg)} .chip.down{color:var(--down);background:var(--down-bg)} .chip.flat{color:var(--muted);background:var(--panel-2)}
+.spark{width:100%;height:42px;display:block}
+.unit{font-size:.74rem;color:var(--faint)}
+
+/* sections */
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.sec-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px}
+.sec-head .left{display:flex;flex-direction:column;gap:2px}
+.sec-head .note{font-size:.84rem;color:var(--muted)}
+.controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+select{font:inherit;font-size:.88rem;background:var(--panel-2);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:6px 10px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;background:var(--panel-2)}
+.seg button{border:0;background:transparent;color:var(--muted);padding:6px 12px;font-size:.85rem}
+.seg button[aria-pressed="true"]{background:var(--accent);color:#1a0d04;font-weight:600}
+.trio{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.mini{border:1px solid var(--line-soft);border-radius:10px;background:var(--panel-2);padding:10px 10px 6px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.mini-head{display:flex;justify-content:space-between;gap:8px;font-size:.82rem;flex-wrap:wrap}
+.mini-head b{font-family:var(--f-display);font-weight:500;color:var(--mc)}
+.mini-head .num{color:var(--muted)}
+.chartbox{height:230px;position:relative}
+.bigchart{height:340px;position:relative}
+.empty{position:absolute;inset:0;display:grid;place-items:center;text-align:center;color:var(--muted);font-size:.86rem;padding:10px}
+
+/* table */
+.tablewrap{overflow:auto;max-height:640px;border:1px solid var(--line);border-radius:10px}
+table{border-collapse:separate;border-spacing:0;width:100%;min-width:980px;font-size:.86rem}
+th,td{padding:7px 10px;white-space:nowrap;border-bottom:1px solid var(--line-soft);text-align:right}
+thead th{position:sticky;background:var(--panel-2);z-index:2;font-weight:600}
+thead tr:first-child th{top:0;font-family:var(--f-display);font-weight:500;font-size:.9rem;border-bottom:0}
+thead tr:nth-child(2) th{top:33px;font-size:.76rem;color:var(--muted);font-weight:500}
+th.g{text-align:center;color:var(--mc);border-top:3px solid var(--mc)}
+th.date,td.date{position:sticky;left:0;text-align:left;background:var(--panel);z-index:1;border-right:1px solid var(--line)}
+thead th.date{z-index:3;background:var(--panel-2)}
+td.gs,th.gs{border-left:1px solid var(--line)}
+tbody tr:nth-child(even) td{background:color-mix(in srgb,var(--panel-2) 45%,var(--panel))}
+tbody tr:nth-child(even) td.date{background:color-mix(in srgb,var(--panel-2) 45%,var(--panel))}
+tbody tr:hover td{background:color-mix(in srgb,var(--accent) 10%,var(--panel))}
+td.up{color:var(--up)} td.down{color:var(--down)} td.na{color:var(--faint)}
+td.fb{color:var(--fb);font-style:italic}
+sup.d{font-size:.62rem;color:var(--faint);font-style:normal;margin-left:2px}
+.dow{color:var(--muted);font-size:.78rem;margin-right:4px}
+.legend{display:flex;flex-wrap:wrap;gap:16px;font-size:.8rem;color:var(--muted)}
+.notes{font-size:.84rem;color:var(--muted);display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px 24px}
+.notes b{color:var(--fg);font-weight:600}
+.notes p{margin:0}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:8px 16px;border-radius:8px;font-size:.86rem}
+.preview-flag{font-size:.78rem;color:#ffd9b8;border:1px dashed rgba(255,200,160,.5);padding:3px 10px;border-radius:6px}
+
+@media (max-width:900px){.tiles,.trio{grid-template-columns:minmax(0,1fr)}.chartbox{height:210px}.bigchart{height:280px}}
+@media (max-width:480px){.wrap{padding-inline:16px}.oc .val{font-size:1.25rem}}
+</style>
+</head>
+<body>
+
+<header class="band">
+  <div class="wrap">
+    <div class="band-top">
+      <div>
+        <div class="eyebrow" style="color:#9fc2b2">PPPGC · Consumer Sales</div>
+        <h1>ราคาปาล์ม CPO <span>เปิด 09:45 · ปิด 17:15</span></h1>
+      </div>
+      <div class="band-meta">
+        <span id="preview-flag" class="preview-flag" hidden>ภาพตัวอย่าง: ข้อมูลจริง ณ เวลาที่อัปเดต ยังไม่รีเฟรชอัตโนมัติ</span>
+        <span id="status" class="pill"><span class="dot"></span><span id="status-text">…</span></span>
+        <span class="pill"><span>อัปเดต</span><span id="updated" class="num">–</span></span>
+        <button id="refresh" class="btn" type="button">รีเฟรช</button>
+      </div>
+    </div>
+    <p>ราคาเปิด = ราคาแรกของช่วง 09:45 น. · ราคาปิด = ราคาล่าสุด ณ 17:15 น. (เวลาไทย) ของแต่ละวัน ย้อนหลัง 1 ปี พร้อมกราฟราคาระหว่างวันแบบแท่ง 15 นาที</p>
+  </div>
+</header>
+
+<main class="wrap" style="padding-top:22px">
+  <section class="tiles" id="tiles" aria-label="ราคาล่าสุด"></section>
+
+  <section class="card" aria-labelledby="h-intra">
+    <div class="sec-head">
+      <div class="left"><span class="eyebrow">ภายในวัน · แท่ง 15 นาที · เวลาไทย</span><h2 id="h-intra">ราคาระหว่าง 09:45–17:15 น.</h2></div>
+      <div class="controls"><label for="day" class="note">วันที่</label><select id="day"></select></div>
+    </div>
+    <div class="trio" id="trio"></div>
+  </section>
+
+  <section class="card" aria-labelledby="h-year">
+    <div class="sec-head">
+      <div class="left"><span class="eyebrow">รายวัน · เปิด 09:45 / ปิด 17:15</span><h2 id="h-year">ย้อนหลัง 1 ปี</h2></div>
+      <div class="controls">
+        <div class="seg" id="mk-seg" role="group" aria-label="เลือกตลาด"></div>
+        <div class="seg" id="rng-seg" role="group" aria-label="ช่วงเวลา"></div>
+      </div>
+    </div>
+    <div class="bigchart" id="yearchart"></div>
+  </section>
+
+  <section class="card" aria-labelledby="h-table">
+    <div class="sec-head">
+      <div class="left"><span class="eyebrow">ตารางรายวัน · 1 แถว = 1 วัน</span><h2 id="h-table">ราคาเปิด–ปิด ทุกตลาด</h2></div>
+      <div class="controls">
+        <button id="copy" class="btn" type="button">คัดลอกไปวาง Excel</button>
+        <button id="csv" class="btn" type="button">ดาวน์โหลด CSV</button>
+      </div>
+    </div>
+    <div class="tablewrap"><table id="tbl"></table></div>
+    <div class="legend">
+      <span>สีเขียว = ปิดสูงกว่าเปิด · สีแดง = ปิดต่ำกว่าเปิด</span>
+      <span><i style="color:var(--fb)">ตัวเอียง</i><sup class="d">D</sup> = วันที่ยังไม่มีข้อมูล 15 นาที ใช้ราคาเปิด/ปิดทั้งวันของตลาดแทน</span>
+      <span>– = ตลาดหยุด</span>
+    </div>
+  </section>
+
+  <section class="notes" aria-label="หมายเหตุ">
+    <p><b>NCDEX CPO (Kandla Spot)</b> ราคาจริงในตลาด Kandla ประเทศอินเดีย หน่วย INR ต่อ 10 กก. ส่วนสัญญา <i>ฟิวเจอร์ส</i> CPO ของ NCDEX/MCX ถูก SEBI ระงับการซื้อขายถึง มี.ค. 2027 ราคาจะเริ่มอัปเดตราว 10:15 น.</p>
+    <p><b>FCPO (Bursa Malaysia)</b> สัญญาใกล้สุด หน่วย MYR/ตัน เทรด 09:30–11:30 และ 14:00–17:00 น. เวลาไทย ข้อมูลจาก TradingView แบบไม่ล็อกอิน ดีเลย์ประมาณ 15 นาที</p>
+    <p><b>Dalian Palm Olein (DCE)</b> สัญญาหลัก หน่วย CNY/ตัน รอบกลางวันเทรดถึง 14:00 น. เวลาไทย ราคาปิดจึงเป็นราคา 14:00 น. ข้อมูลจาก Sina Finance</p>
+  </section>
+</main>
+<div id="toast" class="toast" role="status" hidden></div>
+
+<script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
+<script>
+(() => {
+const KEYS = ["ncdex", "fcpo", "dalian"];
+const M = {
+  ncdex:  {label: "NCDEX CPO", sub: "Kandla Spot · อินเดีย", cvar: "--c-ncdex", dec: 2, kind: "line"},
+  fcpo:   {label: "FCPO", sub: "Bursa Malaysia", cvar: "--c-fcpo", dec: 0, kind: "candle"},
+  dalian: {label: "Dalian P", sub: "DCE ปาล์มโอเลอีน", cvar: "--c-dalian", dec: 0, kind: "candle"},
+};
+const PREVIEW = !!window.__DATA__;
+const TH_OFF = 7 * 3600;
+const DOW = ["อา.", "จ.", "อ.", "พ.", "พฤ.", "ศ.", "ส."];
+const MON = ["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
+const RANGES = [["1M", 31], ["3M", 92], ["6M", 183], ["1Y", 366]];
+let DATA = {}, state = {mk: "fcpo", rng: "1Y", day: null};
+try { const s = JSON.parse(localStorage.getItem("cpo-board") || "{}"); if (s.mk) state.mk = s.mk; if (s.rng) state.rng = s.rng; } catch (e) {}
+const save = () => { try { localStorage.setItem("cpo-board", JSON.stringify({mk: state.mk, rng: state.rng})); } catch (e) {} };
+
+const $ = s => document.querySelector(s);
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const fmt = (v, d) => v == null || isNaN(v) ? "–" : Number(v).toLocaleString("en-US", {minimumFractionDigits: d, maximumFractionDigits: d});
+const pct = v => v == null || isNaN(v) ? "–" : (v > 0 ? "+" : "") + v.toFixed(2) + "%";
+const sgn = v => v == null ? "flat" : v > 0 ? "up" : v < 0 ? "down" : "flat";
+const nowTH = () => new Date(Date.now() + TH_OFF * 1000);          // use getUTC* on this
+const todayTH = () => nowTH().toISOString().slice(0, 10);
+const thDateOf = ts => new Date((ts + TH_OFF) * 1000).toISOString().slice(0, 10);
+const dObj = iso => new Date(iso + "T00:00:00Z");
+const thaiDate = (iso, long) => { const d = dObj(iso); return `${d.getUTCDate()} ${MON[d.getUTCMonth()]} ${long ? d.getUTCFullYear() + 543 : String(d.getUTCFullYear() + 543).slice(2)}`; };
+const toast = msg => { const t = $("#toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => t.hidden = true, 2200); };
+const inWindowNow = () => { const n = nowTH(); const wd = n.getUTCDay(); const hm = n.getUTCHours() * 60 + n.getUTCMinutes(); return wd >= 1 && wd <= 5 && hm >= 585 && hm < 1035; };
+
+async function load() {
+  if (PREVIEW) DATA = window.__DATA__;
+  else {
+    const res = await Promise.allSettled(KEYS.map(k => fetch(`data/${k}.json?v=${Date.now()}`).then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })));
+    res.forEach((r, i) => { if (r.status === "fulfilled") DATA[KEYS[i]] = r.value; });
+  }
+  render();
+}
+
+function status() {
+  const live = inWindowNow();
+  $("#status").classList.toggle("live", live);
+  $("#status-text").textContent = live ? "อยู่ในช่วง 09:45–17:15" : "นอกช่วงเวลา";
+  const ups = KEYS.map(k => DATA[k]?.updated_utc).filter(Boolean).sort();
+  if (ups.length) { const d = new Date(new Date(ups[ups.length - 1]).getTime() + TH_OFF * 1000); $("#updated").textContent = `${thaiDate(d.toISOString().slice(0,10))} ${d.toISOString().slice(11,16)} น.`; }
+  $("#preview-flag").hidden = !PREVIEW;
+  $("#csv").hidden = PREVIEW;
+}
+
+function spark(rows, color) {
+  const v = rows.slice(-30).map(r => r.c); if (v.length < 2) return "";
+  const lo = Math.min(...v), hi = Math.max(...v), W = 300, H = 42, p = 3;
+  const x = i => p + i * (W - 2 * p) / (v.length - 1), y = c => hi === lo ? H / 2 : H - p - (c - lo) / (hi - lo) * (H - 2 * p);
+  const pts = v.map((c, i) => `${x(i).toFixed(1)},${y(c).toFixed(1)}`).join(" ");
+  const id = "g" + Math.random().toString(36).slice(2, 7);
+  return `<svg class="spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
+    <defs><linearGradient id="${id}" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="${color}" stop-opacity=".35"/><stop offset="1" stop-color="${color}" stop-opacity="0"/></linearGradient></defs>
+    <polygon points="${p},${H} ${pts} ${W - p},${H}" fill="url(#${id})"/>
+    <polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.8" vector-effect="non-scaling-stroke"/>
+    <circle cx="${x(v.length - 1)}" cy="${y(v[v.length - 1])}" r="3" fill="${color}"/></svg>`;
+}
+
+function tiles() {
+  const today = todayTH();
+  $("#tiles").innerHTML = KEYS.map(k => {
+    const m = M[k], d = DATA[k], color = css(m.cvar);
+    if (!d || !d.daily?.length) return `<article class="tile" style="--mc:var(${m.cvar})"><div class="tile-name">${m.label}</div><div class="tile-sub">ยังไม่มีข้อมูล</div></article>`;
+    const r = d.daily[d.daily.length - 1];
+    const running = r.d === today && inWindowNow() && r.src === "i";
+    const closeLbl = running ? `ล่าสุด ${r.t_close || ""}` : `ปิด ${r.t_close || "17:15"}`;
+    return `<article class="tile" style="--mc:var(${m.cvar})">
+      <div class="tile-head"><div><div class="tile-name">${m.label}</div><div class="tile-sub">${m.sub} · <span class="unit">${d.unit}</span></div></div>
+        <div class="tile-date">${DOW[dObj(r.d).getUTCDay()]} ${thaiDate(r.d, true)}</div></div>
+      <div class="oc"><div><span class="lbl">เปิด ${r.t_open || "09:45"}</span><span class="val num">${fmt(r.o, m.dec)}</span></div>
+        <div><span class="lbl">${closeLbl}</span><span class="val num">${fmt(r.c, m.dec)}</span></div></div>
+      <div class="tile-foot"><span class="chip ${sgn(r.chg)} num">${r.chg > 0 ? "▲" : r.chg < 0 ? "▼" : "•"} ${fmt(Math.abs(r.chg), m.dec)} (${pct(r.chg_pct)})</span>
+        <span class="unit">เทียบปิดวันก่อน <span class="num" style="color:var(--${sgn(r.prev_chg_pct) === "flat" ? "muted" : sgn(r.prev_chg_pct)})">${pct(r.prev_chg_pct)}</span></span></div>
+      ${spark(d.daily, color)}
+    </article>`;
+  }).join("");
+}
+
+const charts = [];
+function chartOpts(el, intraday) {
+  return {
+    width: el.clientWidth, height: el.clientHeight,
+    layout: {background: {type: "solid", color: "transparent"}, textColor: css("--muted"), fontFamily: "IBM Plex Mono, monospace", fontSize: 11},
+    grid: {vertLines: {color: css("--line-soft")}, horzLines: {color: css("--line-soft")}},
+    rightPriceScale: {borderColor: css("--line")},
+    timeScale: {borderColor: css("--line"), timeVisible: intraday, secondsVisible: false},
+    crosshair: {mode: 0},
+    localization: {locale: "th-TH", timeFormatter: intraday ? (t => new Date(t * 1000).toISOString().slice(11, 16)) : undefined},
+    handleScroll: !intraday, handleScale: !intraday,
+  };
+}
+function killCharts() { while (charts.length) { try { charts.pop().remove(); } catch (e) {} } }
+
+function daySelect() {
+  const days = new Set();
+  KEYS.forEach(k => (DATA[k]?.bars || []).forEach(b => days.add(thDateOf(b[0]))));
+  const list = [...days].sort().reverse();
+  if (!state.day || !list.includes(state.day)) state.day = list[0];
+  $("#day").innerHTML = list.map(d => `<option value="${d}" ${d === state.day ? "selected" : ""}>${DOW[dObj(d).getUTCDay()]} ${thaiDate(d, true)}</option>`).join("");
+}
+
+function intraday() {
+  const trio = $("#trio");
+  trio.innerHTML = KEYS.map(k => `<div class="mini" style="--mc:var(${M[k].cvar})"><div class="mini-head"><b>${M[k].label}</b><span class="num" id="ih-${k}"></span></div><div class="chartbox" id="ic-${k}"></div></div>`).join("");
+  if (!window.LightweightCharts) { KEYS.forEach(k => $("#ic-" + k).innerHTML = `<div class="empty">โหลดไลบรารีกราฟไม่สำเร็จ</div>`); return; }
+  KEYS.forEach(k => {
+    const m = M[k], el = $("#ic-" + k), d = DATA[k];
+    const bars = (d?.bars || []).filter(b => thDateOf(b[0]) === state.day);
+    const row = d?.daily.find(r => r.d === state.day);
+    $("#ih-" + k).textContent = row ? `${fmt(row.o, m.dec)} → ${fmt(row.c, m.dec)} (${pct(row.chg_pct)})` : "";
+    if (!bars.length) { el.innerHTML = `<div class="empty">${row ? "ไม่มีแท่ง 15 นาทีของวันนี้" : "ตลาดหยุด / ไม่มีข้อมูลวันนี้"}</div>`; return; }
+    const ch = LightweightCharts.createChart(el, chartOpts(el, true)); charts.push(ch);
+    const color = css(m.cvar);
+    let s;
+    if (m.kind === "line") {
+      s = ch.addLineSeries({color, lineWidth: 2, lineType: 1, priceFormat: {type: "price", precision: m.dec, minMove: 1 / 10 ** m.dec}});
+      s.setData(bars.map(b => ({time: b[0] + TH_OFF, value: b[4]})));
+    } else {
+      s = ch.addCandlestickSeries({upColor: css("--up"), downColor: css("--down"), borderVisible: false, wickUpColor: css("--up"), wickDownColor: css("--down"), priceFormat: {type: "price", precision: m.dec, minMove: 1}});
+      s.setData(bars.map(b => ({time: b[0] + TH_OFF, open: b[1], high: b[2], low: b[3], close: b[4]})));
+    }
+    s.createPriceLine({price: bars[0][1], color: css("--accent"), lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: "เปิด"});
+    ch.timeScale().fitContent();
+  });
+}
+
+function seg(el, items, cur, onPick) {
+  el.innerHTML = items.map(([v, l]) => `<button type="button" data-v="${v}" aria-pressed="${v === cur}">${l}</button>`).join("");
+  el.onclick = e => { const b = e.target.closest("button"); if (b) onPick(b.dataset.v); };
+}
+const cutoffISO = () => { const days = RANGES.find(r => r[0] === state.rng)[1]; return new Date(Date.now() + TH_OFF * 1000 - days * 864e5).toISOString().slice(0, 10); };
+
+function yearChart() {
+  seg($("#mk-seg"), KEYS.map(k => [k, M[k].label]), state.mk, v => { state.mk = v; save(); yearChart(); });
+  seg($("#rng-seg"), RANGES.map(r => [r[0], r[0]]), state.rng, v => { state.rng = v; save(); yearChart(); table(); });
+  const el = $("#yearchart"); el.innerHTML = "";
+  if (!window.LightweightCharts) { el.innerHTML = `<div class="empty">โหลดไลบรารีกราฟไม่สำเร็จ</div>`; return; }
+  if (yearChart.ch) { try { yearChart.ch.remove(); } catch (e) {} }
+  const m = M[state.mk], rows = (DATA[state.mk]?.daily || []).filter(r => r.d >= cutoffISO());
+  if (!rows.length) { el.innerHTML = `<div class="empty">ยังไม่มีข้อมูล</div>`; return; }
+  const ch = yearChart.ch = LightweightCharts.createChart(el, chartOpts(el, false));
+  const pf = {type: "price", precision: m.dec, minMove: 1 / 10 ** m.dec};
+  if (m.kind === "line") {
+    const s = ch.addAreaSeries({lineColor: css(m.cvar), topColor: css(m.cvar) + "55", bottomColor: css(m.cvar) + "00", lineWidth: 2, priceFormat: pf});
+    s.setData(rows.map(r => ({time: r.d, value: r.c})));
+  } else {
+    const s = ch.addCandlestickSeries({upColor: css("--up"), downColor: css("--down"), borderVisible: false, wickUpColor: css("--up"), wickDownColor: css("--down"), priceFormat: pf});
+    s.setData(rows.map(r => ({time: r.d, open: r.o, high: r.h, low: r.l, close: r.c})));
+  }
+  ch.timeScale().fitContent();
+}
+
+function tableRows() {
+  const byKey = {}; KEYS.forEach(k => byKey[k] = Object.fromEntries((DATA[k]?.daily || []).map(r => [r.d, r])));
+  const dates = [...new Set(KEYS.flatMap(k => Object.keys(byKey[k])))].filter(d => d >= cutoffISO()).sort().reverse();
+  return {dates, byKey};
+}
+function table() {
+  const {dates, byKey} = tableRows();
+  let h = `<thead><tr><th class="date" rowspan="2" style="vertical-align:bottom">วันที่</th>` +
+    KEYS.map(k => `<th class="g gs" colspan="4" style="--mc:var(${M[k].cvar})">${M[k].label} <span class="unit">${DATA[k]?.unit || ""}</span></th>`).join("") +
+    `</tr><tr>` + KEYS.map(() => `<th class="gs">เปิด 09:45</th><th>ปิด 17:15</th><th>เปลี่ยน</th><th>%</th>`).join("") + `</tr></thead><tbody>`;
+  h += dates.map(d => `<tr><td class="date"><span class="dow">${DOW[dObj(d).getUTCDay()]}</span>${thaiDate(d)}</td>` + KEYS.map(k => {
+    const r = byKey[k][d], dec = M[k].dec;
+    if (!r) return `<td class="gs na">–</td><td class="na">–</td><td class="na">–</td><td class="na">–</td>`;
+    const fb = r.src === "d" ? " fb" : "", mark = r.src === "d" ? `<sup class="d">D</sup>` : "", s = sgn(r.chg);
+    return `<td class="gs num${fb}" title="${r.t_open ? "แท่ง " + r.t_open : "ราคาเปิดทั้งวัน"}">${fmt(r.o, dec)}${mark}</td><td class="num${fb}" title="${r.t_close ? "ถึง " + r.t_close : "ราคาปิดทั้งวัน"}">${fmt(r.c, dec)}</td>` +
+      `<td class="num ${s}">${r.chg > 0 ? "+" : ""}${fmt(r.chg, dec)}</td><td class="num ${s}">${pct(r.chg_pct)}</td>`;
+  }).join("") + `</tr>`).join("");
+  $("#tbl").innerHTML = h + `</tbody>`;
+}
+function exportText(sep) {
+  const {dates, byKey} = tableRows();
+  const head = ["date", ...KEYS.flatMap(k => [`${k}_open_0945`, `${k}_close_1715`, `${k}_chg`, `${k}_chg_pct`, `${k}_source`])];
+  const lines = [head.join(sep)];
+  dates.slice().reverse().forEach(d => lines.push([d, ...KEYS.flatMap(k => { const r = byKey[k][d]; return r ? [r.o, r.c, r.chg, r.chg_pct, r.src === "d" ? "daily" : "15m"] : ["", "", "", "", ""]; })].join(sep)));
+  return lines.join("\n");
+}
+$("#copy").onclick = () => {
+  const txt = exportText("\t");
+  navigator.clipboard?.writeText(txt).then(() => toast("คัดลอกแล้ว วางใน Excel ได้เลย"), () => toast("คัดลอกไม่สำเร็จ ลองดาวน์โหลด CSV แทน")) ?? toast("เบราว์เซอร์นี้คัดลอกไม่ได้");
+};
+$("#csv").onclick = () => {
+  const blob = new Blob(["﻿" + exportText(",")], {type: "text/csv;charset=utf-8"});
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `cpo-open0945-close1715-${todayTH()}.csv`; a.click();
+};
+$("#day").onchange = e => { state.day = e.target.value; killCharts(); intraday(); };
+$("#refresh").onclick = () => { if (PREVIEW) toast("ภาพตัวอย่างไม่ดึงข้อมูลใหม่ ใช้บนเว็บจริงได้"); else load().then(() => toast("อัปเดตแล้ว")); };
+
+function render() { status(); tiles(); daySelect(); killCharts(); intraday(); yearChart(); table(); }
+let rT; addEventListener("resize", () => { clearTimeout(rT); rT = setTimeout(() => { killCharts(); intraday(); yearChart(); }, 200); });
+matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", () => setTimeout(render, 50));
+new MutationObserver(() => setTimeout(render, 50)).observe(document.documentElement, {attributes: true, attributeFilter: ["data-theme"]});
+if (!PREVIEW) setInterval(() => { if (inWindowNow()) load(); else status(); }, 5 * 60 * 1000);
+load();
+})();
+</script>
+
+</body>
+</html>

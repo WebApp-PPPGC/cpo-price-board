@@ -1,0 +1,6 @@
+{
+  "outputDirectory": "public",
+  "headers": [
+    { "source": "/data/(.*)", "headers": [{ "key": "Cache-Control", "value": "no-cache, max-age=0" }] }
+  ]
+}
