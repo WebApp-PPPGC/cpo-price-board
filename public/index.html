@@ -92,9 +92,12 @@ select{font:inherit;font-size:.88rem;background:var(--panel-2);color:var(--fg);b
 .seg button[aria-pressed="true"]{background:var(--accent);color:#1a0d04;font-weight:600}
 .trio{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
 .mini{border:1px solid var(--line-soft);border-radius:10px;background:var(--panel-2);padding:10px 10px 6px;display:flex;flex-direction:column;gap:6px;min-width:0}
-.mini-head{display:flex;justify-content:space-between;gap:8px;font-size:.82rem;flex-wrap:wrap}
+.mini-head{display:flex;justify-content:space-between;align-items:center;gap:6px;font-size:.82rem;flex-wrap:wrap}
 .mini-head b{font-family:var(--f-display);font-weight:500;color:var(--mc)}
-.mini-head .num{color:var(--muted)}
+.mini-head .num{color:var(--muted);font-size:.74rem;white-space:nowrap}
+.mini-head .left{display:flex;gap:8px;align-items:center}
+.srclink{font-size:.7rem;color:var(--muted);text-decoration:none;border:1px solid var(--line);border-radius:5px;padding:0 6px;line-height:1.5}
+.srclink:hover,.srclink:focus-visible{color:var(--accent);border-color:var(--accent)}
 .chartbox{height:230px;position:relative}
 .bigchart{height:340px;position:relative}
 .empty{position:absolute;inset:0;display:grid;place-items:center;text-align:center;color:var(--muted);font-size:.86rem;padding:10px}
@@ -205,9 +208,9 @@ td.prov{font-style:italic}
 (() => {
 const KEYS = ["ncdex", "fcpo", "dalian"];
 const M = {
-  ncdex:  {label: "NCDEX CPO", sub: "Kandla Spot · อินเดีย", cvar: "--c-ncdex", dec: 2, kind: "line"},
-  fcpo:   {label: "FCPO", sub: "Bursa Malaysia", cvar: "--c-fcpo", dec: 0, kind: "candle"},
-  dalian: {label: "Dalian P", sub: "DCE ปาล์มโอเลอีน", cvar: "--c-dalian", dec: 0, kind: "candle"},
+  ncdex:  {label: "NCDEX CPO", sub: "Kandla Spot · อินเดีย", cvar: "--c-ncdex", dec: 2, kind: "line", link: "https://th.tradingview.com/chart/?symbol=NCDEX%3ACPO", src: "TradingView"},
+  fcpo:   {label: "FCPO", sub: "Bursa Malaysia", cvar: "--c-fcpo", dec: 0, kind: "candle", link: "https://th.tradingview.com/chart/?symbol=MYX%3AFCPO1%21", src: "TradingView"},
+  dalian: {label: "Dalian P", sub: "DCE ปาล์มโอเลอีน", cvar: "--c-dalian", dec: 0, kind: "candle", link: "https://finance.sina.com.cn/futures/quotes/P0.shtml", src: "Sina"},
 };
 const PREVIEW = !!window.__DATA__;
 const TH_OFF = 7 * 3600;
@@ -303,6 +306,14 @@ function chartOpts(el, intraday) {
     handleScroll: !intraday, handleScale: !intraday,
   };
 }
+// โลโก้ TradingView มุมกราฟ: ให้กดแล้วไปหน้ากราฟของสัญลักษณ์นั้น (Dalian ไม่มีใน TradingView จึงคงลิงก์เดิม)
+function linkLogo(el, k) {
+  const fix = () => el.querySelectorAll('a[href*="tradingview.com"]').forEach(a => {
+    if (M[k].src === "TradingView") { a.href = M[k].link; a.title = `เปิดกราฟ ${M[k].label} ใน TradingView`; }
+    a.target = "_blank"; a.rel = "noopener";
+  });
+  fix(); requestAnimationFrame(fix); setTimeout(fix, 300);
+}
 function killCharts() { while (charts.length) { try { charts.pop().remove(); } catch (e) {} } }
 
 function daySelect() {
@@ -315,7 +326,7 @@ function daySelect() {
 
 function intraday() {
   const trio = $("#trio");
-  trio.innerHTML = KEYS.map(k => `<div class="mini" style="--mc:var(${M[k].cvar})"><div class="mini-head"><b>${M[k].label}</b><span class="num" id="ih-${k}"></span></div><div class="chartbox" id="ic-${k}"></div></div>`).join("");
+  trio.innerHTML = KEYS.map(k => `<div class="mini" style="--mc:var(${M[k].cvar})"><div class="mini-head"><span class="left"><b>${M[k].label}</b><a class="srclink" href="${M[k].link}" target="_blank" rel="noopener" title="เปิดกราฟ ${M[k].label} ใน ${M[k].src}">${M[k].src} ↗</a></span><span class="num" id="ih-${k}"></span></div><div class="chartbox" id="ic-${k}"></div></div>`).join("");
   if (!window.LightweightCharts) { KEYS.forEach(k => $("#ic-" + k).innerHTML = `<div class="empty">โหลดไลบรารีกราฟไม่สำเร็จ</div>`); return; }
   KEYS.forEach(k => {
     const m = M[k], el = $("#ic-" + k), d = DATA[k];
@@ -323,7 +334,7 @@ function intraday() {
     const row = d?.daily.find(r => r.d === state.day);
     $("#ih-" + k).textContent = row ? `${fmt(row.o, m.dec)} → ${fmt(row.c, m.dec)} (${pct(row.chg_pct)})` : "";
     if (!bars.length) { el.innerHTML = `<div class="empty">${row ? "ไม่มีแท่ง 15 นาทีของวันนี้" : "ตลาดหยุด / ไม่มีข้อมูลวันนี้"}</div>`; return; }
-    const ch = LightweightCharts.createChart(el, chartOpts(el, true)); charts.push(ch);
+    const ch = LightweightCharts.createChart(el, chartOpts(el, true)); charts.push(ch); linkLogo(el, k);
     const color = css(m.cvar);
     let s;
     if (m.kind === "line") {
@@ -352,7 +363,7 @@ function yearChart() {
   if (yearChart.ch) { try { yearChart.ch.remove(); } catch (e) {} }
   const m = M[state.mk], rows = (DATA[state.mk]?.daily || []).filter(r => r.d >= cutoffISO());
   if (!rows.length) { el.innerHTML = `<div class="empty">ยังไม่มีข้อมูล</div>`; return; }
-  const ch = yearChart.ch = LightweightCharts.createChart(el, chartOpts(el, false));
+  const ch = yearChart.ch = LightweightCharts.createChart(el, chartOpts(el, false)); linkLogo(el, state.mk);
   const pf = {type: "price", precision: m.dec, minMove: 1 / 10 ** m.dec};
   if (m.kind === "line") {
     const s = ch.addAreaSeries({lineColor: css(m.cvar), topColor: css(m.cvar) + "55", bottomColor: css(m.cvar) + "00", lineWidth: 2, priceFormat: pf});
