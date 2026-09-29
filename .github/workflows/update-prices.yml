@@ -1,0 +1,36 @@
+name: Update CPO prices
+
+on:
+  schedule:
+    # เวลาไทย 09:45–17:15 = UTC 02:45–10:15 (จันทร์–ศุกร์) ทุก 15 นาที
+    - cron: "*/15 2-10 * * 1-5"
+    # รอบเก็บตก หลังปิด 17:15 (17:30 น. เวลาไทย)
+    - cron: "30 10 * * 1-5"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-prices
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - run: python scripts/fetch_prices.py
+      - name: Commit data
+        run: |
+          git config user.name "cpo-bot"
+          git config user.email "cpo-bot@users.noreply.github.com"
+          git add public/data
+          if git diff --cached --quiet; then echo "no change"; exit 0; fi
+          git commit -m "data: update $(TZ=Asia/Bangkok date '+%Y-%m-%d %H:%M')"
+          git push
